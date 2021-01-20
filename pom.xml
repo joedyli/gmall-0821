@@ -19,6 +19,7 @@
     <modules>
         <module>gmall-admin</module>
         <module>gmall-common</module>
+        <module>gmall-sms-interface</module>
     </modules>
 
     <properties>
