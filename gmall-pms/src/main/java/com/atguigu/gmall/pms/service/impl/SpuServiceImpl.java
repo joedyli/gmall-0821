@@ -8,12 +8,16 @@ import com.atguigu.gmall.pms.vo.SkuVo;
 import com.atguigu.gmall.pms.vo.SpuAttrValueVo;
 import com.atguigu.gmall.pms.vo.SpuVo;
 import com.atguigu.gmall.sms.vo.SkuSaleVo;
+import io.seata.spring.annotation.GlobalTransactional;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -82,9 +86,9 @@ public class SpuServiceImpl extends ServiceImpl<SpuMapper, SpuEntity> implements
         return new PageResultVo(page);
     }
 
-    @Transactional(propagation = Propagation.REQUIRED)
+    @GlobalTransactional
     @Override
-    public void bigSave(SpuVo spu) {
+    public void bigSave(SpuVo spu) throws FileNotFoundException {
         // 1.先保存spu相关信息
         // 1.1. 保存pms_spu
         Long spuId = saveSpu(spu);
@@ -93,13 +97,21 @@ public class SpuServiceImpl extends ServiceImpl<SpuMapper, SpuEntity> implements
         //this.saveSpuDesc(spu, spuId);
         this.descService.saveSpuDesc(spu, spuId);
 
-        int i = 1/0;
+//        try {
+//            TimeUnit.SECONDS.sleep(4);
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+        //
+//        new FileInputStream("xxxx");
 
         // 1.3. 保存pms_spu_attr_value
         saveBaseAttr(spu, spuId);
 
         // 2.再保存sku相关信息
         saveSkuInfo(spu, spuId);
+
+//        int i = 1/0;
     }
 
     private void saveSkuInfo(SpuVo spu, Long spuId) {

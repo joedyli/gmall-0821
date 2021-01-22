@@ -1,5 +1,6 @@
 package com.atguigu.gmall.pms.controller;
 
+import java.io.FileNotFoundException;
 import java.util.List;
 
 import com.atguigu.gmall.pms.vo.SpuVo;
@@ -69,7 +70,7 @@ public class SpuController {
      */
     @PostMapping
     @ApiOperation("保存")
-    public ResponseVo<Object> save(@RequestBody SpuVo spu){
+    public ResponseVo<Object> save(@RequestBody SpuVo spu) throws FileNotFoundException {
 //		spuService.save(spu);
         this.spuService.bigSave(spu);
 
