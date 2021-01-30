@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+    <title>搜索页</title>
+    <link rel="icon" href="http://static.gmall.com/img/favicon.ico">
+    <link rel="stylesheet" type="text/css" href="http://static.gmall.com/css/all.css"/>
+    <link rel="stylesheet" type="text/css" href="http://static.gmall.com/css/pages-list.css"/>
+    <script type="text/javascript" src="http://static.gmall.com/js/plugins/jquery/jquery.min.js"></script>
+    <script type="text/javascript" src="http://static.gmall.com/js/plugins/jquery.cookie.js"></script>
+    <script src="http://static.gmall.com/js/plugins/vue.js"></script>
+    <script src="http://static.gmall.com/js/plugins/axios.js"></script>
+    <script src="http://static.gmall.com/js/auth.js"></script>
+    <script src="http://static.gmall.com/js/request.js"></script>
+</head>
+
+<script >
+    $(function () {
+        $('.brand').hover(function(){
+            /*显示品牌名称*/
+            $(this).children("div").show()
+            $(this).children("img").hide()
+        },function(){
+            // alert("come on!")
+            $(this).children("div").hide()
+            $(this).children("img").show()
+        });
+
+    })
+</script>
+
+<body>
+<!--页面顶部-->
+<div th:include="/common/header :: header"></div>
+<!-- 商品分类导航 -->
+<div th:replace="/common/navigation :: navigation"></div>
+
+<!--list-content-->
+<!-- 每次修改了搜索、过滤、排序条件之后，应该展示第一页信息 -->
+<div class="main" th:object="${response}" th:with="location=${'/search?'+ #strings.replace(#httpServletRequest.queryString, '&pageNum=' + searchParam.pageNum, '')}" >
+    <div class="py-container">
+        <!--bread-->
+        <div class="bread">
+            <ul class="fl sui-breadcrumb">
+                <li>
+                    <a href="#">全部结果</a>
+                </li>
+            </ul>
+            <ul class="fl sui-tag">
+                <li th:if="${not #lists.isEmpty(searchParam.brandId)}" class="with-x">
+                    <span>品牌：</span>
+                    <!-- 品牌可以多选，多选情况下品牌名以空格进行分割 -->
+                    <span th:each="brand : *{brands}" th:text="${brand.name + ' '}"></span>
+                    <!-- 点击x时，去掉地址栏中的品牌过滤条件 -->
+                    <a th:href="@{${#strings.replace(location, '&brandId='+ #strings.arrayJoin(searchParam.brandId, ','), '')}}">×</a>
+                </li>
+                <li th:if="${not #lists.isEmpty(searchParam.cid)}" class="with-x">
+                    <span>分类：</span>
+                    <!-- 分类也可以多选，多选时情况下分类名称以空格分割 -->
+                    <span th:each="category : *{categories}" th:text="${category.name + ' '}"></span>
+                    <!-- 点击x时，去掉地址栏中的分类过滤条件 -->
+                    <a th:href="@{${#strings.replace(location, '&cid='+ #strings.arrayJoin(searchParam.cid, ','), '')}}">×</a>
+                </li>
+                <li th:each="prop : ${searchParam.props}" class="with-x">
+                    <!-- 规格参数的格式为“8:128G-256G”，这里获取“:”号后的规格参数展示 -->
+                    <span th:with="(propName = ${#strings.substringAfter(prop, ':')})" th:text="${propName}"></span>
+                    <!--<a th:href="@{${#strings.replace(location, '&props=' + prop, '')}}" th:text="${'&props=' + prop}">×</a>-->
+                    <!-- 这里不能使用thymeleaf的替换语法（如上），因为thymeleaf获取的地址：中文及特殊符号是编码后的 -->
+                    <a th:href="@{'javascript: cancelProp(\'' + ${prop} + '\');'}">×</a>
+                </li>
+            </ul>
+            <ul class="fl sui-breadcrumb" style="font-weight: bold">
+                <li>
+                    <span th:text="${searchParam.keyword}"></span>
+                </li>
+            </ul>
+        </div>
+        <!--selector-->
+        <div class="clearfix selector">
+            <!-- 品牌过滤：只有一个品牌或者已经选择了品牌时，不显示品牌过滤 -->
+            <div class="type-wrap logo" th:if="${response.brands != null && response.brands.size() > 1 && searchParam.brandId == null}">
+                <!-- 过滤名称写死，就是品牌 -->
+                <div class="fl key brand">品牌</div>
+                <div class="value logos">
+                    <ul class="logo-list">
+                        <!-- 遍历品牌集合 -->
+                        <li th:each="brand : *{brands}">
+                            <!-- 选择品牌后把品牌id拼接到地址栏 -->
+                            <a class="brand" style="text-decoration: none;color: red;" th:href="@{${location + '&brandId=' + brand.id}}" th:title="${brand.name}" >
+                                <!-- 渲染品牌logo及品牌名称，通过js控制log和名称的切换 -->
+                                <img th:src="${brand.logo}">
+                                <div th:text="${brand.name}" style="display: none"></div>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <!-- 多选及更多，不做 -->
+                <div class="ext">
+                    <a href="javascript:void(0);" class="sui-btn">多选</a>
+                    <a href="javascript:void(0);">更多</a>
+                </div>
+            </div>
+            <!-- 分类过滤：只有一个分类或者已经选择了分类时，不显示分类过滤 -->
+            <div class="type-wrap" th:if="${response.categories != null && response.categories.size() > 1 && searchParam.cid == null}">
+                <!-- 过滤名称写死，就是分类 -->
+                <div class="fl key">分类</div>
+                <div class="fl value">
+                    <ul class="type-list">
+                        <!-- 遍历所有分类过滤条件 -->
+                        <li th:each="category : *{categories}">
+                            <!-- 展示分类名称，点击时把分类id拼接到地址栏 -->
+                            <a th:text="${category.name}" th:href="@{${location + '&cid=' + category.id}}">GSM（移动/联通2G）</a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="fl ext"></div>
+            </div>
+            <!-- 规格参数的过滤条件：由于规格过滤是多个，所以这里需要遍历。也要判断规格参数是否只有一个条件，地址栏是否包含了该规格参数的过滤 -->
+            <div class="type-wrap" th:each="filter : *{filters}"
+                 th:if="${filter.attrValues != null && filter.attrValues.size() > 1 && not (#strings.contains(location, ',' + filter.attrId + ':') || #strings.contains(location, '=' + filter.attrId + ':'))}" >
+                <!-- 规格参数名 -->
+                <div class="fl key" th:text="${filter.attrName}">显示屏尺寸</div>
+                <div class="fl value">
+                    <ul class="type-list">
+                        <!-- 遍历渲染规格参数可选值列表 -->
+                        <li th:each="value : ${filter.attrValues}">
+                            <!-- 展示每个规格参数值。点击时把规格参数的过滤条件拼接到地址栏 -->
+                            <a th:text="${value}" th:href="@{${location + '&props=' + filter.attrId + ':' + value}}">3.0-3.9英寸</a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="fl ext"></div>
+            </div>
+        </div>
+        <!--details-->
+        <div class="details">
+            <!-- 排序条件 -->
+            <div class="sui-navbar">
+                <div class="navbar-inner filter" >
+                    <ul class="sui-nav">
+                        <!-- 排序sort=0时，该li标签处于活性状态 -->
+                        <li th:class="${searchParam.sort == 0 ? 'active' : ''}">
+                            <!-- 点击综合时，地址栏的sort值替换为0 -->
+                            <a th:href="@{${#strings.indexOf(location, '&sort=')} > 0 ? ${#strings.replace(location, '&sort=' + searchParam.sort, '&sort=0')} : ${location + '&sort=0'}}">综合</a>
+                        </li>
+                        <li th:class="${searchParam.sort == 4 ? 'active' : ''}">
+                            <a th:href="@{${#strings.indexOf(location, '&sort=')} > 0 ? ${#strings.replace(location, '&sort=' + searchParam.sort, '&sort=4')} : ${location + '&sort=4'}}">销量</a>
+                        </li>
+                        <li th:class="${searchParam.sort == 3 ? 'active' : ''}">
+                            <a th:href="@{${#strings.indexOf(location, '&sort=')} > 0 ? ${#strings.replace(location, '&sort=' + searchParam.sort, '&sort=3')} : ${location + '&sort=3'}}">新品</a>
+                        </li>
+                        <li th:class="${searchParam.sort == 2 ? 'active' : ''}">
+                            <a th:href="@{${#strings.indexOf(location, '&sort=')} > 0 ? ${#strings.replace(location, '&sort=' + searchParam.sort, '&sort=2')} : ${location + '&sort=2'}}">价格⬆</a>
+                        </li>
+                        <li th:class="${searchParam.sort == 1 ? 'active' : ''}">
+                            <a th:href="@{${#strings.indexOf(location, '&sort=')} > 0 ? ${#strings.replace(location, '&sort=' + searchParam.sort, '&sort=1')} : ${location + '&sort=1'}}">价格⬇</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <!-- 商品列表 -->
+            <div class="goods-list">
+                <ul class="yui3-g">
+                    <!-- 遍历goodsList，渲染商品 -->
+                    <li class="yui3-u-1-5" th:each="goods : *{goodsList}">
+                        <div class="list-wrap">
+                            <!-- 商品图片 -->
+                            <div class="p-img">
+                                <!-- 点击图片跳转到商品详情页 -->
+                                <a th:href="@{http://item.gmall.com/{id}.html(id=${goods.skuId})}" target="_blank"><img
+                                        th:src="${goods.defaultImage}"/></a>
+                            </div>
+                            <!-- 商品价格 -->
+                            <div class="price">
+                                <strong>
+                                    <em>¥</em>
+                                    <i th:text="${#numbers.formatDecimal(goods.price, 1, 2)}">6088.00</i>
+                                </strong>
+                            </div>
+                            <!-- 商品标题 -->
+                            <div class="attr">
+                                <!-- 点击标题跳转到商品详情页，鼠标放在标题上展示副标题 -->
+                                <a target="_blank" th:href="@{http://item.gmall.com/{id}.html(id=${goods.skuId})}" th:title="${goods.subTitle}" th:utext="${goods.title}">Apple苹果iPhone
+                                    6s (A1699)Apple苹果iPhone 6s (A1699)Apple苹果iPhone 6s (A1699)Apple苹果iPhone 6s
+                                    (A1699)</a>
+                            </div>
+                            <div class="commit">
+                                <i class="command">已有<span>2000</span>人评价</i>
+                            </div>
+                            <div class="operate">
+                                <a href="javascript:void(0);" target="_blank" class="sui-btn btn-bordered btn-danger">加入购物车</a>
+                                <a href="javascript:void(0);" class="sui-btn btn-bordered">收藏</a>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <!-- 分页 -->
+            <div class="fr page">
+                <!-- 根据总记录数及pageSize计算总页数 -->
+                <div class="sui-pagination pagination-large"
+                     th:with="totalPage = *{total % pageSize == 0 ? (total / pageSize) : (total / pageSize + 1)}">
+                    <ul>
+                        <!-- 不是第一页时，展示上一页 -->
+                        <li class="prev" th:if="${searchParam.pageNum != 1}">
+                            <!-- 点击上一页，页码减1 -->
+                            <a th:href="|${location}&pageNum=${searchParam.pageNum - 1}|">«上一页</a>
+                        </li>
+                        <!-- 如果是第一页，上一页按钮不可用 -->
+                        <li class="prev disabled" th:if="${searchParam.pageNum == 1}">
+                            <a href="javascript:void(0);">上一页</a>
+                        </li>
+                        <!-- 渲染页码 -->
+                        <li th:each="i : ${#numbers.sequence(1, totalPage)}" th:class="${i == searchParam.pageNum } ? 'active' : ''">
+                            <a th:href="|${location}&pageNum=${i}|"><span th:text="${i}"></span></a>
+                        </li>
+                        <!-- 渲染下一页，逻辑类似于上一页 -->
+                        <li class="next" th:if="${searchParam.pageNum != totalPage}">
+                            <a th:href="|${location}&pageNum=${searchParam.pageNum + 1}|">下一页</a>
+                        </li>
+                        <li class="next disabled" th:if="${searchParam.pageNum == totalPage}">
+                            <a href="javascript:void(0);">下一页</a>
+                        </li>
+                    </ul>
+                    <!-- 总页数 -->
+                    <div><span th:text="|共${totalPage}页|">共10页&nbsp;</span></div>
+                </div>
+            </div>
+        </div>
+        <!--hotsale-->
+        <div class="clearfix hot-sale">
+            <h4 class="title">热卖商品</h4>
+            <div class="hot-list">
+                <ul class="yui3-g">
+                    <li class="yui3-u-1-4">
+                        <div class="list-wrap">
+                            <div class="p-img">
+                                <img src="http://static.gmall.com/img/like_01.png"/>
+                            </div>
+                            <div class="attr">
+                                <em>Apple苹果iPhone 6s (A1699)</em>
+                            </div>
+                            <div class="price">
+                                <strong>
+                                    <em>¥</em>
+                                    <i>4088.00</i>
+                                </strong>
+                            </div>
+                            <div class="commit">
+                                <i class="command">已有700人评价</i>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="yui3-u-1-4">
+                        <div class="list-wrap">
+                            <div class="p-img">
+                                <img src="http://static.gmall.com/img/like_03.png"/>
+                            </div>
+                            <div class="attr">
+                                <em>金属A面，360°翻转，APP下单省300！</em>
+                            </div>
+                            <div class="price">
+                                <strong>
+                                    <em>¥</em>
+                                    <i>4088.00</i>
+                                </strong>
+                            </div>
+                            <div class="commit">
+                                <i class="command">已有700人评价</i>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="yui3-u-1-4">
+                        <div class="list-wrap">
+                            <div class="p-img">
+                                <img src="http://static.gmall.com/img/like_04.png"/>
+                            </div>
+                            <div class="attr">
+                                <em>256SSD商务大咖，完爆职场，APP下单立减200</em>
+                            </div>
+                            <div class="price">
+                                <strong>
+                                    <em>¥</em>
+                                    <i>4068.00</i>
+                                </strong>
+                            </div>
+                            <div class="commit">
+                                <i class="command">已有20人评价</i>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="yui3-u-1-4">
+                        <div class="list-wrap">
+                            <div class="p-img">
+                                <img src="http://static.gmall.com/img/like_02.png"/>
+                            </div>
+                            <div class="attr">
+                                <em>Apple苹果iPhone 6s (A1699)</em>
+                            </div>
+                            <div class="price">
+                                <strong>
+                                    <em>¥</em>
+                                    <i>4088.00</i>
+                                </strong>
+                            </div>
+                            <div class="commit">
+                                <i class="command">已有700人评价</i>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!--页面底部-->
+<div th:replace="/common/footer :: footer"></div>
+
+<!--侧栏面板开始-->
+<div class="J-global-toolbar">
+    <div class="toolbar-wrap J-wrap">
+        <div class="toolbar">
+            <div class="toolbar-panels J-panel">
+
+                <!-- 购物车 -->
+                <div style="visibility: hidden;" class="J-content toolbar-panel tbar-panel-cart toolbar-animate-out">
+                    <h3 class="tbar-panel-header J-panel-header">
+                        <a href="" class="title"><i></i><em class="title">购物车</em></a>
+                        <span class="close-panel J-close" onclick="cartPanelView.tbar_panel_close('cart');"></span>
+                    </h3>
+                    <div class="tbar-panel-main">
+                        <div class="tbar-panel-content J-panel-content">
+                            <div id="J-cart-tips" class="tbar-tipbox hide">
+                                <div class="tip-inner">
+                                    <span class="tip-text">还没有登录，登录后商品将被保存</span>
+                                    <a href="#none" class="tip-btn J-login">登录</a>
+                                </div>
+                            </div>
+                            <div id="J-cart-render">
+                                <!-- 列表 -->
+                                <div id="cart-list" class="tbar-cart-list">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 小计 -->
+                    <div id="cart-footer" class="tbar-panel-footer J-panel-footer">
+                        <div class="tbar-checkout">
+                            <div class="jtc-number"><strong class="J-count" id="cart-number">0</strong>件商品</div>
+                            <div class="jtc-sum"> 共计：<strong class="J-total" id="cart-sum">¥0</strong></div>
+                            <a class="jtc-btn J-btn" href="#none" target="_blank">去购物车结算</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 我的关注 -->
+                <div style="visibility: hidden;" data-name="follow" class="J-content toolbar-panel tbar-panel-follow">
+                    <h3 class="tbar-panel-header J-panel-header">
+                        <a href="#" target="_blank" class="title"> <i></i> <em class="title">我的关注</em> </a>
+                        <span class="close-panel J-close" onclick="cartPanelView.tbar_panel_close('follow');"></span>
+                    </h3>
+                    <div class="tbar-panel-main">
+                        <div class="tbar-panel-content J-panel-content">
+                            <div class="tbar-tipbox2">
+                                <div class="tip-inner"><i class="i-loading"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tbar-panel-footer J-panel-footer"></div>
+                </div>
+
+                <!-- 我的足迹 -->
+                <div style="visibility: hidden;" class="J-content toolbar-panel tbar-panel-history toolbar-animate-in">
+                    <h3 class="tbar-panel-header J-panel-header">
+                        <a href="#" target="_blank" class="title"> <i></i> <em class="title">我的足迹</em> </a>
+                        <span class="close-panel J-close" onclick="cartPanelView.tbar_panel_close('history');"></span>
+                    </h3>
+                    <div class="tbar-panel-main">
+                        <div class="tbar-panel-content J-panel-content">
+                            <div class="jt-history-wrap">
+                                <ul>
+                                    <!--<li class="jth-item">
+                                        <a href="#" class="img-wrap"> <img src="../../.../portal/img/like_03.png" height="100" width="100" /> </a>
+                                        <a class="add-cart-button" href="#" target="_blank">加入购物车</a>
+                                        <a href="#" target="_blank" class="price">￥498.00</a>
+                                    </li>
+                                    <li class="jth-item">
+                                        <a href="#" class="img-wrap"> <img src="../../../portal/img/like_02.png" height="100" width="100" /></a>
+                                        <a class="add-cart-button" href="#" target="_blank">加入购物车</a>
+                                        <a href="#" target="_blank" class="price">￥498.00</a>
+                                    </li>-->
+                                </ul>
+                                <a href="#" class="history-bottom-more" target="_blank">查看更多足迹商品 &gt;&gt;</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tbar-panel-footer J-panel-footer"></div>
+                </div>
+
+            </div>
+
+            <div class="toolbar-header"></div>
+
+            <!-- 侧栏按钮 -->
+            <div class="toolbar-tabs J-tab">
+                <div onclick="cartPanelView.tabItemClick('cart')" class="toolbar-tab tbar-tab-cart" data="购物车"
+                     tag="cart">
+                    <i class="tab-ico"></i>
+                    <em class="tab-text"></em>
+                    <span class="tab-sub J-count " id="tab-sub-cart-count">0</span>
+                </div>
+                <div onclick="cartPanelView.tabItemClick('follow')" class="toolbar-tab tbar-tab-follow" data="我的关注"
+                     tag="follow">
+                    <i class="tab-ico"></i>
+                    <em class="tab-text"></em>
+                    <span class="tab-sub J-count hide">0</span>
+                </div>
+                <div onclick="cartPanelView.tabItemClick('history')" class="toolbar-tab tbar-tab-history" data="我的足迹"
+                     tag="history">
+                    <i class="tab-ico"></i>
+                    <em class="tab-text"></em>
+                    <span class="tab-sub J-count hide">0</span>
+                </div>
+            </div>
+
+            <div class="toolbar-footer">
+                <div class="toolbar-tab tbar-tab-top"><a href="#"> <i class="tab-ico  "></i> <em
+                        class="footer-tab-text">顶部</em> </a></div>
+                <div class="toolbar-tab tbar-tab-feedback"><a href="#" target="_blank"> <i class="tab-ico"></i> <em
+                        class="footer-tab-text ">反馈</em> </a></div>
+            </div>
+
+            <div class="toolbar-mini"></div>
+
+        </div>
+
+        <div id="J-toolbar-load-hook"></div>
+
+    </div>
+</div>
+
+<script th:inline="javascript">
+    let urlParams = decodeURI([[${#httpServletRequest.queryString}]]);
+
+    function cancelProp(prop){
+        urlParams = urlParams.replace('&props=' + prop, '');
+        window.location = '/search?' + urlParams;
+    }
+
+</script>
+
+</body>
+
+</html>

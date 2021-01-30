@@ -1,8 +1,11 @@
 package com.atguigu.gmall.search.service;
 
 import com.alibaba.fastjson.JSON;
+import com.atguigu.gmall.pms.entity.BrandEntity;
+import com.atguigu.gmall.pms.entity.CategoryEntity;
 import com.atguigu.gmall.search.pojo.Goods;
 import com.atguigu.gmall.search.pojo.SearchParamVo;
+import com.atguigu.gmall.search.pojo.SearchResponseAttrVo;
 import com.atguigu.gmall.search.pojo.SearchResponseVo;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.lucene.search.join.ScoreMode;
@@ -17,8 +20,13 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.RangeQueryBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.Aggregations;
+import org.elasticsearch.search.aggregations.bucket.nested.ParsedNested;
+import org.elasticsearch.search.aggregations.bucket.terms.ParsedLongTerms;
+import org.elasticsearch.search.aggregations.bucket.terms.ParsedStringTerms;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
@@ -76,10 +84,82 @@ public class SearchService {
         responseVo.setGoodsList(goodsList);
 
         // 2.解析aggregations，获取到品牌列表、分类列表、规格参数列表
-        Aggregations aggregations = response.getAggregations();
-        responseVo.setBrands(null);
-        responseVo.setCategories(null);
-        responseVo.setFilters(null);
+        // 把聚合结果集以map的形式解析：key-聚合名称 value-聚合的内容
+        Map<String, Aggregation> aggregationMap = response.getAggregations().asMap();
+        // 2.1. 获取品牌
+        ParsedLongTerms brandIdAgg = (ParsedLongTerms)aggregationMap.get("brandIdAgg");
+        List<? extends Terms.Bucket> brandIdAggBuckets = brandIdAgg.getBuckets();
+        if (!CollectionUtils.isEmpty(brandIdAggBuckets)){
+            responseVo.setBrands(brandIdAggBuckets.stream().map(bucket -> {
+                BrandEntity brandEntity = new BrandEntity();
+                // 外层桶的key就是品牌的id
+                brandEntity.setId(((Terms.Bucket) bucket).getKeyAsNumber().longValue());
+
+                // 获取到桶中的子聚合：品牌名称子聚合  品牌logo的子聚合
+                Map<String, Aggregation> brandSubAggMap = ((Terms.Bucket) bucket).getAggregations().asMap();
+                ParsedStringTerms brandNameAgg = (ParsedStringTerms)brandSubAggMap.get("brandNameAgg");
+                // 每个品牌名称子聚合中有且仅有一个桶
+                brandEntity.setName(brandNameAgg.getBuckets().get(0).getKeyAsString());
+
+                // 获取logo的子聚合，每个logo的子聚合中也是有且仅有一个桶
+                ParsedStringTerms logoAgg = (ParsedStringTerms)brandSubAggMap.get("logoAgg");
+                brandEntity.setLogo(logoAgg.getBuckets().get(0).getKeyAsString());
+
+                return brandEntity;
+            }).collect(Collectors.toList()));
+        }
+
+        // 2.2. 获取分类
+        ParsedLongTerms categoryIdAgg = (ParsedLongTerms)aggregationMap.get("categoryIdAgg");
+        List<? extends Terms.Bucket> buckets = categoryIdAgg.getBuckets();
+        if (!CollectionUtils.isEmpty(buckets)){
+            // 把每个桶转化成每个分类
+            List<CategoryEntity> categoryEntities = buckets.stream().map(bucket -> {
+                CategoryEntity categoryEntity = new CategoryEntity();
+
+                categoryEntity.setId(((Terms.Bucket) bucket).getKeyAsNumber().longValue());
+                // 获取分类名称的子聚合获取分类名称
+                ParsedStringTerms categoryNameAgg = (ParsedStringTerms)((Terms.Bucket) bucket).getAggregations().get("categoryNameAgg");
+                categoryEntity.setName(categoryNameAgg.getBuckets().get(0).getKeyAsString());
+                return categoryEntity;
+            }).collect(Collectors.toList());
+            responseVo.setCategories(categoryEntities);
+        }
+
+        // 2.3. 获取规格参数
+        // 获取到规格参数的嵌套聚合
+        ParsedNested attrAgg = (ParsedNested)aggregationMap.get("attrAgg");
+        // 获取嵌套聚合中attrId的聚合
+        ParsedLongTerms attrIdAgg = (ParsedLongTerms)attrAgg.getAggregations().get("attrIdAgg");
+        // 获取attrId聚合中的桶集合，获取所有的检索类型的规格参数
+        List<? extends Terms.Bucket> attrIdAggBuckets = attrIdAgg.getBuckets();
+        // 有些商品或者是有些关键字可能没有检索类型的规格参数
+        if (!CollectionUtils.isEmpty(attrIdAggBuckets)){
+            // 把attrId聚合中的桶集合转化成List<SearchResponseAttrVo>
+            List<SearchResponseAttrVo> searchResponseAttrVos = attrIdAggBuckets.stream().map(bucket -> {
+                // 把每个桶转化成SearchResponseAttrVo对象
+                SearchResponseAttrVo responseAttrVo = new SearchResponseAttrVo();
+                // 桶中的key就是attrId
+                responseAttrVo.setAttrId(((Terms.Bucket) bucket).getKeyAsNumber().longValue());
+
+                // 获取子聚合获取attrName 和 attrValues
+                Map<String, Aggregation> subAggMap = ((Terms.Bucket) bucket).getAggregations().asMap();
+
+                // 获取attrName的子聚合
+                ParsedStringTerms attrNameAgg = (ParsedStringTerms)subAggMap.get("attrNameAgg");
+                responseAttrVo.setAttrName(attrNameAgg.getBuckets().get(0).getKeyAsString());
+
+                // 获取attrValue的子聚合
+                ParsedStringTerms attrValueAgg = (ParsedStringTerms)subAggMap.get("attrValueAgg");
+                List<? extends Terms.Bucket> valueBuckets = attrValueAgg.getBuckets();
+                if (!CollectionUtils.isEmpty(valueBuckets)){
+                    responseAttrVo.setAttrValues(valueBuckets.stream().map(Terms.Bucket::getKeyAsString).collect(Collectors.toList()));
+                }
+
+                return responseAttrVo;
+            }).collect(Collectors.toList());
+            responseVo.setFilters(searchResponseAttrVos);
+        }
 
         return responseVo;
     }
@@ -199,6 +279,10 @@ public class SearchService {
                 .subAggregation(AggregationBuilders.terms("attrIdAgg").field("searchAtts.attrId")
                         .subAggregation(AggregationBuilders.terms("attrNameAgg").field("searchAtts.attrName"))
                         .subAggregation(AggregationBuilders.terms("attrValueAgg").field("searchAtts.attrValue"))));
+
+
+        // 6.构建结果集过滤
+        sourceBuilder.fetchSource(new String[]{"skuId", "defaultImage", "price", "title", "subTitle"}, null);
 
         //System.out.println(sourceBuilder);
         return sourceBuilder;
