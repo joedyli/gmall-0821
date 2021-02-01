@@ -56,12 +56,12 @@
                     <!-- 点击x时，去掉地址栏中的品牌过滤条件 -->
                     <a th:href="@{${#strings.replace(location, '&brandId='+ #strings.arrayJoin(searchParam.brandId, ','), '')}}">×</a>
                 </li>
-                <li th:if="${not #lists.isEmpty(searchParam.cid)}" class="with-x">
+                <li th:if="${not #lists.isEmpty(searchParam.categoryId)}" class="with-x">
                     <span>分类：</span>
                     <!-- 分类也可以多选，多选时情况下分类名称以空格分割 -->
                     <span th:each="category : *{categories}" th:text="${category.name + ' '}"></span>
                     <!-- 点击x时，去掉地址栏中的分类过滤条件 -->
-                    <a th:href="@{${#strings.replace(location, '&cid='+ #strings.arrayJoin(searchParam.cid, ','), '')}}">×</a>
+                    <a th:href="@{${#strings.replace(location, '&categoryId='+ #strings.arrayJoin(searchParam.categoryId, ','), '')}}">×</a>
                 </li>
                 <li th:each="prop : ${searchParam.props}" class="with-x">
                     <!-- 规格参数的格式为“8:128G-256G”，这里获取“:”号后的规格参数展示 -->
@@ -72,14 +72,15 @@
                 </li>
             </ul>
             <ul class="fl sui-breadcrumb" style="font-weight: bold">
-                <li>
-                    <span th:text="${searchParam.keyword}"></span>
-                </li>
-            </ul>
+            <li>
+                <span th:text="${searchParam.keyword}"></span>
+            </li>
+        </ul>
         </div>
         <!--selector-->
         <div class="clearfix selector">
             <!-- 品牌过滤：只有一个品牌或者已经选择了品牌时，不显示品牌过滤 -->
+            <!-- 聚合出的品牌不为空；并且聚合出的品牌个数大于1；并且查询参数中没有品牌（用户没有选择品牌的情况下） -->
             <div class="type-wrap logo" th:if="${response.brands != null && response.brands.size() > 1 && searchParam.brandId == null}">
                 <!-- 过滤名称写死，就是品牌 -->
                 <div class="fl key brand">品牌</div>
@@ -103,7 +104,8 @@
                 </div>
             </div>
             <!-- 分类过滤：只有一个分类或者已经选择了分类时，不显示分类过滤 -->
-            <div class="type-wrap" th:if="${response.categories != null && response.categories.size() > 1 && searchParam.cid == null}">
+            <!-- 聚合出的分类不为空； 并且聚合出的分类的个数大于1；并且查询参数中没有分类（用户没有选择过分类的情况下）  -->
+            <div class="type-wrap" th:if="${response.categories != null && response.categories.size() > 1 && searchParam.categoryId == null}">
                 <!-- 过滤名称写死，就是分类 -->
                 <div class="fl key">分类</div>
                 <div class="fl value">
@@ -111,13 +113,15 @@
                         <!-- 遍历所有分类过滤条件 -->
                         <li th:each="category : *{categories}">
                             <!-- 展示分类名称，点击时把分类id拼接到地址栏 -->
-                            <a th:text="${category.name}" th:href="@{${location + '&cid=' + category.id}}">GSM（移动/联通2G）</a>
+                            <a th:text="${category.name}" th:href="@{${location + '&categoryId=' + category.id}}">GSM（移动/联通2G）</a>
                         </li>
                     </ul>
                 </div>
                 <div class="fl ext"></div>
             </div>
             <!-- 规格参数的过滤条件：由于规格过滤是多个，所以这里需要遍历。也要判断规格参数是否只有一个条件，地址栏是否包含了该规格参数的过滤 -->
+            <!-- 遍历所有的过滤的规格参数 -->
+            <!-- 当前的规格参数值的聚合结果集不为空；并且个数大于1；并且用户没有选择过这个规格参数 -->
             <div class="type-wrap" th:each="filter : *{filters}"
                  th:if="${filter.attrValues != null && filter.attrValues.size() > 1 && not (#strings.contains(location, ',' + filter.attrId + ':') || #strings.contains(location, '=' + filter.attrId + ':'))}" >
                 <!-- 规格参数名 -->
@@ -142,7 +146,7 @@
                     <ul class="sui-nav">
                         <!-- 排序sort=0时，该li标签处于活性状态 -->
                         <li th:class="${searchParam.sort == 0 ? 'active' : ''}">
-                            <!-- 点击综合时，地址栏的sort值替换为0 -->
+                            <!-- 点击综合时，判断地址栏中是否有sort排序 -->
                             <a th:href="@{${#strings.indexOf(location, '&sort=')} > 0 ? ${#strings.replace(location, '&sort=' + searchParam.sort, '&sort=0')} : ${location + '&sort=0'}}">综合</a>
                         </li>
                         <li th:class="${searchParam.sort == 4 ? 'active' : ''}">
@@ -445,6 +449,7 @@
 <script th:inline="javascript">
     let urlParams = decodeURI([[${#httpServletRequest.queryString}]]);
 
+    //6:麒麟
     function cancelProp(prop){
         urlParams = urlParams.replace('&props=' + prop, '');
         window.location = '/search?' + urlParams;

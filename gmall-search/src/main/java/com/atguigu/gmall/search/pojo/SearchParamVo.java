@@ -20,7 +20,7 @@ public class SearchParamVo {
     // 分类的过滤条件
     private List<Long> categoryId;
 
-    // 规格参数的过滤：["4:8G-12G", "5:128G-256G-512G"]
+    // 规格参数的过滤：["4:8G-12G", "5:256G"]
     private List<String> props;
 
     // 排序字段：0-默认，根据得分降序排列，1-价格降序，2-价格升序，3-销量的降序，4-新品降序

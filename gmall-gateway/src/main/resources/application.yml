@@ -27,3 +27,7 @@ spring:
           uri: lb://oms-service
           predicates:
             - Path=/oms/**
+        - id: search-route
+          uri: lb://search-service
+          predicates:
+            - Host=search.gmall.com

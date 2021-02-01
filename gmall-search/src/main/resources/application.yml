@@ -22,6 +22,8 @@ spring:
       uris: http://172.16.116.100:9200
   jackson:
     default-property-inclusion: non_null
+  thymeleaf:
+    cache: false
 feign:
   sentinel:
     enabled: true
