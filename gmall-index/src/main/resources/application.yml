@@ -1,5 +1,5 @@
 server:
-  port: 18086
+  port: 18087
 spring:
   cloud:
     nacos:
@@ -17,24 +17,10 @@ spring:
     sender:
       type: web
     discovery-client-enabled: false
-  elasticsearch:
-    rest:
-      uris: http://172.16.116.100:9200
-  jackson:
-    default-property-inclusion: non_null
   thymeleaf:
     cache: false
-  rabbitmq:
+  redis:
     host: 172.16.116.100
-    port: 5672
-    virtual-host: /fengge
-    username: fengge
-    password: fengge
-    listener:
-      simple:
-        prefetch: 1
-        concurrency: 4
-        acknowledge-mode: manual
 feign:
   sentinel:
     enabled: true
