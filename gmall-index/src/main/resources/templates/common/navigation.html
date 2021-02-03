@@ -66,9 +66,13 @@
             methods: {
                 loadSubCategories(category){
                     console.log("你触发了鼠标移动事件")
-                    axios.get("http://api.gmall.com/index/cates/" + category.id).then(({data}) => {
-                        category.subs = data.data;
-                    })
+                    // es6语法解构表达式，data是解构出了response对象中的ResponseVo
+                    if (category.subs == undefined || category.subs == null){
+                        axios.get("http://api.gmall.com/index/cates/" + category.id).then(({data}) => {
+                            // 从responseVo对象中获取data（二级分类和二级分类下的三级分类）
+                            category.subs = data.data;
+                        })
+                    }
                 }
             }
         })
