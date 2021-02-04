@@ -3,14 +3,19 @@ package com.atguigu.gmall.index.service;
 import com.alibaba.fastjson.JSON;
 import com.atguigu.gmall.common.bean.ResponseVo;
 import com.atguigu.gmall.index.feign.GmallPmsClient;
+import com.atguigu.gmall.index.utils.DistributedLock;
 import com.atguigu.gmall.pms.entity.CategoryEntity;
 import org.apache.commons.lang3.StringUtils;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -24,6 +29,12 @@ public class IndexService {
 
     @Autowired
     private StringRedisTemplate redisTemplate;
+
+    @Autowired
+    private DistributedLock distributedLock;
+
+    @Autowired
+    private RedissonClient redissonClient;
 
     private static final String KEY_PREFIX = "index:cates:";
 
@@ -55,6 +66,60 @@ public class IndexService {
     }
 
     public void testLock() {
+        // 加锁
+        RLock lock = this.redissonClient.getLock("lock");
+        lock.lock();
+
+        try {
+            // 获取到锁执行业务逻辑
+            String number = this.redisTemplate.opsForValue().get("number");
+            if (number == null){
+                return;
+            }
+            int num = Integer.parseInt(number);
+            this.redisTemplate.opsForValue().set("number", String.valueOf(++num));
+
+            try {
+                TimeUnit.SECONDS.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        } finally {
+            // 释放锁
+            lock.unlock();
+        }
+    }
+
+    public void testLock3() {
+        String uuid = UUID.randomUUID().toString();
+        Boolean lock = this.distributedLock.tryLock("lock", uuid, 30);
+        if (lock){
+            // 获取到锁执行业务逻辑
+            String number = this.redisTemplate.opsForValue().get("number");
+            if (number == null){
+                return;
+            }
+            int num = Integer.parseInt(number);
+            this.redisTemplate.opsForValue().set("number", String.valueOf(++num));
+
+            try {
+                TimeUnit.SECONDS.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            //this.testSubLock(uuid);
+
+            this.distributedLock.unlock("lock", uuid);
+        }
+    }
+
+    public void testSubLock(String uuid){
+        this.distributedLock.tryLock("lock", uuid, 30);
+        System.out.println("测试可重入锁");
+        this.distributedLock.unlock("lock", uuid);
+    }
+
+    public void testLock2() {
         // 为了防误删，给锁添加唯一标识
         String uuid = UUID.randomUUID().toString();
         // 加锁
@@ -80,9 +145,13 @@ public class IndexService {
 
             //释放锁
             // 为了防止误删，删除时需要判断是否自己的锁
-            if (StringUtils.equals(uuid, this.redisTemplate.opsForValue().get("lock"))){
-                this.redisTemplate.delete("lock");
-            }
+            String script = "if(redis.call('get', KEYS[1]) == ARGV[1]) then return redis.call('del', KEYS[1]) else return 0 end";
+            // 预加载：springdata-redis会自动的预加载
+            // DefaultRedisScript：要使用两个参数的构造方法来初始化
+            this.redisTemplate.execute(new DefaultRedisScript<>(script, Boolean.class), Arrays.asList("lock"), uuid);
+//            if (StringUtils.equals(uuid, this.redisTemplate.opsForValue().get("lock"))){
+//                this.redisTemplate.delete("lock");
+//            }
         }
     }
 }
