@@ -2,19 +2,27 @@ package com.atguigu.gmall.index.service;
 
 import com.alibaba.fastjson.JSON;
 import com.atguigu.gmall.common.bean.ResponseVo;
+import com.atguigu.gmall.index.config.GmallCache;
 import com.atguigu.gmall.index.feign.GmallPmsClient;
 import com.atguigu.gmall.index.utils.DistributedLock;
 import com.atguigu.gmall.pms.entity.CategoryEntity;
+import com.google.common.base.Charsets;
+import com.google.common.hash.BloomFilter;
+import com.google.common.hash.Funnels;
 import org.apache.commons.lang3.StringUtils;
+import org.redisson.api.RCountDownLatch;
 import org.redisson.api.RLock;
+import org.redisson.api.RReadWriteLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
+import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
@@ -43,11 +51,28 @@ public class IndexService {
         return categoryResponseVo.getData();
     }
 
+    @GmallCache(prefix = KEY_PREFIX, timeout = 43200, random = 7200, lock = "index:cates:lock:")
     public List<CategoryEntity> queryLvl2CategoriesWithSubsByPid(Long pid) {
+        ResponseVo<List<CategoryEntity>> responseVo = this.pmsClient.queryLvl2CatesWithSubsByPid(pid);
+        return responseVo.getData();
+    }
+
+    public List<CategoryEntity> queryLvl2CategoriesWithSubsByPid2(Long pid) {
+
         // 先查询缓存，缓存中有，直接返回
         String json = this.redisTemplate.opsForValue().get(KEY_PREFIX + pid);
         if (StringUtils.isNotBlank(json)){
             return JSON.parseArray(json, CategoryEntity.class);
+        }
+
+        // 为了防止缓存击穿，添加分布式锁
+        RLock lock = this.redissonClient.getLock("index:cates:lock:" + pid);
+        lock.lock();
+
+        // 再次查询缓存，因为在请求等待获取锁的过程中，可能有其他请求已把数据放入缓存
+        String json2 = this.redisTemplate.opsForValue().get(KEY_PREFIX + pid);
+        if (StringUtils.isNotBlank(json2)){
+            return JSON.parseArray(json2, CategoryEntity.class);
         }
 
         // 再去查询数据库，并放入缓存
@@ -68,7 +93,7 @@ public class IndexService {
     public void testLock() {
         // 加锁
         RLock lock = this.redissonClient.getLock("lock");
-        lock.lock();
+        lock.lock(10, TimeUnit.SECONDS);
 
         try {
             // 获取到锁执行业务逻辑
@@ -79,14 +104,14 @@ public class IndexService {
             int num = Integer.parseInt(number);
             this.redisTemplate.opsForValue().set("number", String.valueOf(++num));
 
-            try {
-                TimeUnit.SECONDS.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+//            try {
+//                TimeUnit.SECONDS.sleep(100);
+//            } catch (InterruptedException e) {
+//                e.printStackTrace();
+//            }
         } finally {
             // 释放锁
-            lock.unlock();
+            //lock.unlock();
         }
     }
 
@@ -154,4 +179,37 @@ public class IndexService {
 //            }
         }
     }
+
+    public void testRead() {
+        RReadWriteLock rwLock = this.redissonClient.getReadWriteLock("rwLock");
+        rwLock.readLock().lock(10, TimeUnit.SECONDS);
+
+        System.out.println("读的业务操作");
+    }
+
+    public void testWrite() {
+        // 两个方法的锁名称要一致
+        RReadWriteLock rwLock = this.redissonClient.getReadWriteLock("rwLock");
+        rwLock.writeLock().lock(10, TimeUnit.SECONDS);
+
+        System.out.println("写的业务操作");
+    }
+
+    public void testLatch() {
+        RCountDownLatch latch = this.redissonClient.getCountDownLatch("latch");
+        latch.trySetCount(6);
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        // TODO: 后续操作只能等待
+    }
+
+    public void testCountDown() {
+        RCountDownLatch latch = this.redissonClient.getCountDownLatch("latch");
+        // TODO: 业务
+        latch.countDown();
+    }
+
 }
