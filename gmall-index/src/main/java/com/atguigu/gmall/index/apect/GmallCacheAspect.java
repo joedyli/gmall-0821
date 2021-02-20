@@ -74,22 +74,26 @@ public class GmallCacheAspect {
         RLock fairLock = this.redissonClient.getFairLock(lock + args);
         fairLock.lock();
 
-        // 3.再查询缓存，如果可以命中，直接返回
-        String json2 = this.redisTemplate.opsForValue().get(key);
-        if (StringUtils.isNotBlank(json2)){
-            return JSON.parseObject(json2, returnType);
+        try {
+            // 3.再查询缓存，如果可以命中，直接返回
+            String json2 = this.redisTemplate.opsForValue().get(key);
+            if (StringUtils.isNotBlank(json2)){
+                return JSON.parseObject(json2, returnType);
+            }
+
+            // 4.执行目标方法，远程调用或者从数据库中获取数据
+            Object result = joinPoint.proceed(joinPoint.getArgs());
+
+            // 5.把数据放入缓存
+            // 获取缓存过期时间，为了防止缓存雪崩给过期时间添加随机值
+            if (result != null) {
+                int timeout = gmallCache.timeout() + new Random().nextInt(gmallCache.random());
+                this.redisTemplate.opsForValue().set(key, JSON.toJSONString(result), timeout, TimeUnit.MINUTES);
+            }
+
+            return result;
+        } finally {
+            fairLock.unlock();
         }
-
-        // 4.执行目标方法，远程调用或者从数据库中获取数据
-        Object result = joinPoint.proceed(joinPoint.getArgs());
-
-        // 5.把数据放入缓存
-        // 获取缓存过期时间，为了防止缓存雪崩给过期时间添加随机值
-        if (result != null) {
-            int timeout = gmallCache.timeout() + new Random().nextInt(gmallCache.random());
-            this.redisTemplate.opsForValue().set(key, JSON.toJSONString(result), timeout, TimeUnit.MINUTES);
-        }
-
-        return result;
     }
 }

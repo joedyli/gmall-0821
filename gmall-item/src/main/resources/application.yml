@@ -1,0 +1,32 @@
+server:
+  port: 18088
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+    sentinel:
+      transport:
+        dashboard: localhost:8080
+        port: 8719
+  zipkin:
+    base-url: http://127.0.0.1:9411
+    sender:
+      type: web
+    discovery-client-enabled: true
+  sleuth:
+    sampler:
+      probability: 1
+  redis:
+    host: 172.16.116.100
+  thymeleaf:
+    cache: false
+feign:
+  sentinel:
+    enabled: true
+thread:
+  pool:
+    coreSize: 100
+    maxSize: 500
+    keepAlive: 60
+    blockingQueueSize: 2000
