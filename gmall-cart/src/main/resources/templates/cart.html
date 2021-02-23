@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=9; IE=8; IE=7; IE=EDGE">
+	<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+	<title>我的购物车</title>
+	<link rel="icon" href="http://static.gmall.com/img/favicon.ico">
+
+	<!-- 引入样式 -->
+	<!--<link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">-->
+	<link rel="stylesheet" type="text/css" href="http://static.gmall.com/css/all.css" />
+	<link rel="stylesheet" type="text/css" href="http://static.gmall.com/css/pages-cart.css" />
+	<script type="text/javascript" src="http://static.gmall.com/js/plugins/jquery/jquery.min.js"></script>
+	<script type="text/javascript" src="http://static.gmall.com/js/plugins/jquery.cookie.js"></script>
+	<script src="http://static.gmall.com/js/plugins/vue.js"></script>
+	<script src="http://static.gmall.com/js/plugins/axios.js"></script>
+	<script src="http://static.gmall.com/js/auth.js"></script>
+	<script src="http://static.gmall.com/js/request.js"></script>
+</head>
+
+<body>
+	<!--head-->
+	<!-- 头部栏位 -->
+	<!--页面顶部-->
+	<div th:include="/common/header :: header"></div>
+
+
+	<div class="cart py-container">
+		<!--All goods-->
+		<div class="allgoods" id="app">
+			<h4>全部商品
+				<span></span>
+			</h4>
+			<div class="cart-main">
+				<div class="yui3-g cart-th">
+					<div class="yui3-u-1-4">
+						<input class="chooseAll" type="checkbox" name="" value="" /> 全部</div>
+					<div class="yui3-u-1-4">商品</div>
+					<div class="yui3-u-1-8">单价（元）</div>
+					<div class="yui3-u-1-8">数量</div>
+					<div class="yui3-u-1-8">小计（元）</div>
+					<div class="yui3-u-1-8">操作</div>
+				</div>
+				<div class="cart-item-list">
+					<div class="cart-body">
+						<!-- 遍历购物车集合 -->
+						<div class="cart-list" v-for="cart,index in carts" :key="index">
+							<ul class="goods-list yui3-g">
+								<li class="yui3-u-1-24">
+									<input type="checkbox" name="chk_list" v-model="cart.check" value="true" @click="check(cart)" />
+								</li>
+								<li class="yui3-u-6-24">
+									<div class="good-item">
+										<div class="item-img">
+											<img :src="cart.defaultImage" width="80" height="60" />
+										</div>
+										<div class="item-msg">{{cart.title}}</div>
+									</div>
+								</li>
+								<li class="yui3-u-5-24">
+									<div class="item-txt" v-for="attr in cart.saleAttrs">
+										{{attr.attrName}}: {{attr.attrValue}}
+									</div>
+								</li>
+								<li class="yui3-u-1-8">
+									<span class="price">{{cart.price}}</span>
+									<span class="price">{{cart.currentPrice}}</span>
+								</li>
+								<li class="yui3-u-1-8">
+									<a href="javascript:void(0)" @click="decr(cart)" class="increment mins">-</a>
+									<input autocomplete="off" type="text" @change="changeNum(cart)" v-model="cart.count" minnum="1" class="itxt" />
+									<a href="javascript:void(0)" @click="incr(cart)" class="increment plus">+</a>
+								</li>
+								<li class="yui3-u-1-8">
+									<span class="sum">{{cart.price * cart.count}}</span>
+								</li>
+								<li class="yui3-u-1-8">
+									<a href="javascript:void(0)" @click="deleteCart(index)">删除</a>
+									<br />
+									<a href="#none">移到收藏</a>
+								</li>
+							</ul>
+						</div>
+
+					</div>
+				</div>
+			</div>
+			<div class="cart-tool">
+				<div class="select-all">
+					<input class="chooseAll" type="checkbox" name="" id="" value="" />
+					<span>全选</span>
+				</div>
+				<div class="option">
+					<a href="#none">删除选中的商品</a>
+					<a href="#none">移到我的关注</a>
+					<a href="#none">清除下柜商品</a>
+				</div>
+				<div class="money-box">
+					<div class="chosed">已选择
+						<span>{{totalCount}}</span>件商品</div>
+					<div class="sumprice">
+						<span>
+							<em>总价（不含运费） ：</em>
+							<i class="summoney">¥{{totalMoney}}</i>
+						</span>
+						<span>
+							<em>已节省：</em>
+							<i>-¥{{discount}}</i>
+						</span>
+					</div>
+					<div class="sumbtn">
+						<a class="sum-btn" href="http://order.gmall.com/confirm" target="_blank">结算</a>
+					</div>
+				</div>
+			</div>
+			<div class="clearfix"></div>
+			<div class="liked">
+				<ul class="sui-nav nav-tabs">
+					<li class="active">
+						<a href="#index" data-toggle="tab">猜你喜欢</a>
+					</li>
+					<li>
+						<a href="#profile" data-toggle="tab">特惠换购</a>
+					</li>
+				</ul>
+				<div class="clearfix"></div>
+				<div class="tab-content">
+					<div id="index" class="tab-pane active">
+						<div id="myCarousel" data-ride="carousel" data-interval="4000" class="sui-carousel slide">
+							<div class="carousel-inner">
+								<div class="active item">
+									<ul>
+										<li>
+											<img src="http://static.gmall.com/img/like1.png" />
+											<div class="intro">
+												<i>Apple苹果iPhone 6s (A1699)</i>
+											</div>
+											<div class="money">
+												<span>$29.00</span>
+											</div>
+											<div class="incar">
+												<a href="#" class="sui-btn btn-bordered btn-xlarge btn-default">
+													<i class="car"></i>
+													<span class="cartxt">加入购物车</span>
+												</a>
+											</div>
+										</li>
+										<li>
+											<img src="http://static.gmall.com/img/like2.png" />
+											<div class="intro">
+												<i>Apple苹果iPhone 6s (A1699)</i>
+											</div>
+											<div class="money">
+												<span>$29.00</span>
+											</div>
+											<div class="incar">
+												<a href="#" class="sui-btn btn-bordered btn-xlarge btn-default">
+													<i class="car"></i>
+													<span class="cartxt">加入购物车</span>
+												</a>
+											</div>
+										</li>
+										<li>
+											<img src="http://static.gmall.com/img/like3.png" />
+											<div class="intro">
+												<i>Apple苹果iPhone 6s (A1699)</i>
+											</div>
+											<div class="money">
+												<span>$29.00</span>
+											</div>
+											<div class="incar">
+												<a href="#" class="sui-btn btn-bordered btn-xlarge btn-default">
+													<i class="car"></i>
+													<span class="cartxt">加入购物车</span>
+												</a>
+											</div>
+										</li>
+										<li>
+											<img src="http://static.gmall.com/img/like4.png" />
+											<div class="intro">
+												<i>Apple苹果iPhone 6s (A1699)</i>
+											</div>
+											<div class="money">
+												<span>$29.00</span>
+											</div>
+											<div class="incar">
+												<a href="#" class="sui-btn btn-bordered btn-xlarge btn-default">
+													<i class="car"></i>
+													<span class="cartxt">加入购物车</span>
+												</a>
+											</div>
+										</li>
+									</ul>
+								</div>
+								<div class="item">
+									<ul>
+										<li>
+											<img src="http://static.gmall.com/img/like1.png" />
+											<div class="intro">
+												<i>Apple苹果iPhone 6s (A1699)</i>
+											</div>
+											<div class="money">
+												<span>$29.00</span>
+											</div>
+											<div class="incar">
+												<a href="#" class="sui-btn btn-bordered btn-xlarge btn-default">
+													<i class="car"></i>
+													<span class="cartxt">加入购物车</span>
+												</a>
+											</div>
+										</li>
+										<li>
+											<img src="http://static.gmall.com/img/like2.png" />
+											<div class="intro">
+												<i>Apple苹果iPhone 6s (A1699)</i>
+											</div>
+											<div class="money">
+												<span>$29.00</span>
+											</div>
+											<div class="incar">
+												<a href="#" class="sui-btn btn-bordered btn-xlarge btn-default">
+													<i class="car"></i>
+													<span class="cartxt">加入购物车</span>
+												</a>
+											</div>
+										</li>
+										<li>
+											<img src="http://static.gmall.com/img/like3.png" />
+											<div class="intro">
+												<i>Apple苹果iPhone 6s (A1699)</i>
+											</div>
+											<div class="money">
+												<span>$29.00</span>
+											</div>
+											<div class="incar">
+												<a href="#" class="sui-btn btn-bordered btn-xlarge btn-default">
+													<i class="car"></i>
+													<span class="cartxt">加入购物车</span>
+												</a>
+											</div>
+										</li>
+										<li>
+											<img src="http://static.gmall.com/img/like4.png" />
+											<div class="intro">
+												<i>Apple苹果iPhone 6s (A1699)</i>
+											</div>
+											<div class="money">
+												<span>$29.00</span>
+											</div>
+											<div class="incar">
+												<a href="#" class="sui-btn btn-bordered btn-xlarge btn-default">
+													<i class="car"></i>
+													<span class="cartxt">加入购物车</span>
+												</a>
+											</div>
+										</li>
+									</ul>
+								</div>
+							</div>
+							<a href="#myCarousel" data-slide="prev" class="carousel-control left">‹</a>
+							<a href="#myCarousel" data-slide="next" class="carousel-control right">›</a>
+						</div>
+					</div>
+					<div id="profile" class="tab-pane">
+						<p>特惠选购</p>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<!-- 底部栏位 -->
+	<!--页面底部-->
+	<div th:replace="/common/footer :: footer"></div>
+	<!--页面底部END-->
+	<script type="text/javascript" src="http://static.gmall.com/js/plugins/jquery/jquery.min.js"></script>
+
+	<script type="text/javascript">
+		$(".chooseAll").click(function () {
+			$("input[name='chk_list']").prop("checked", $(this).prop("checked"));
+		})
+	</script>
+	<script th:inline="javascript">
+		new Vue({
+			el: '#app',
+			data: {
+				carts: [[${carts}]],
+				discount: 0
+			},
+			mounted(){
+				this.carts.forEach(cart => cart.saleAttrs = JSON.parse(cart.saleAttrs));
+			},
+			computed: {
+				totalCount(){
+					return this.carts.reduce((a, b) => parseInt(a) + parseInt(b.count), 0)
+				},
+				totalMoney(){
+					return this.carts.reduce((a, b) => a + b.count * b.price, 0)
+				}
+			},
+			methods: {
+				incr(cart){
+					let count = cart.count + 1;
+					axios.post('http://cart.gmall.com/updateNum', {skuId: cart.skuId, count: count}).then(({data})=>{
+						if (data.code === 0) {
+							cart.count++;
+						}
+					})
+				},
+				decr(cart){
+					let count = cart.count - 1;
+					axios.post('http://cart.gmall.com/updateNum', {skuId: cart.skuId, count: count}).then(({data})=>{
+						if (data.code === 0) {
+							cart.count--;
+						}
+					})
+				},
+				changeNum(cart){
+					axios.post('http://cart.gmall.com/updateNum', {skuId: cart.skuId, count: cart.count})
+				},
+				check(cart){
+					let check = cart.check;
+					axios.post('http://cart.gmall.com/updateStatus', {skuId: cart.skuId, check: !check})
+				},
+				deleteCart(index){
+					axios.post('http://cart.gmall.com/deleteCart?skuId=' + this.carts[index].skuId).then(({data})=>{
+						if (data.code === 0) {
+							this.carts.splice(index, 1);
+						}
+					})
+				}
+			}
+		})
+	</script>
+
+</body>
+
+</html>

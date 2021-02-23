@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<div class="typeNav" th:fragment="navigation">
+    <div class="py-container">
+        <div class="yui3-g NavList">
+            <div class="all-sorts-list">
+                <div class="yui3-u Left all-sort">
+                    <h4>全部商品分类</h4>
+                </div>
+                <!-- html模板 -->
+                <div class="sort" id="app">
+                    <div class="all-sort-list2">
+                        <div v-for="category,stat in categories" :class="stat.index == 0 ? 'item bo' : 'item'" >
+                            <h3 @mouseover="loadSubCategories(category)"><a href="">{{category.name}}</a></h3>
+                            <div class="item-list clearfix">
+                                <div class="subitem" v-for="subCat in category.subs">
+                                    <dl class="fore1">
+                                        <dt><a href="">{{subCat.name}}</a></dt>
+                                        <dd>
+                                            <em v-for="sub in subCat.subs"><a href="">{{sub.name}}</a></em>
+                                        </dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="yui3-u Center navArea">
+                <ul class="nav">
+                    <li class="f-item">服装城</li>
+                    <li class="f-item">美妆馆</li>
+                    <li class="f-item">谷粒超市</li>
+                    <li class="f-item">全球购</li>
+                    <li class="f-item">闪购</li>
+                    <li class="f-item">团购</li>
+                    <li class="f-item">有趣</li>
+                    <li class="f-item"><a href="http://activity.gmall.com/seckill.html" target="_blank">秒杀</a></li>
+                </ul>
+            </div>
+            <div class="yui3-u Right"></div>
+        </div>
+    </div>
+    <script th:inline="javascript">
+        // vue实例
+        let app = new Vue({
+            el: "#app",
+            data: {
+                categories: [[${categories}]]
+            },
+            // mounted(){},
+            // created(){
+            //     cates = this.categories;
+            //     cates.forEach(category => {
+            //         axios.get("http://api.gmall.com/index/cates/" + category.id).then(({data}) => {
+            //             category.subCates = data.data;
+            //         })
+            //     })
+            //     this.categories = cates;
+            // },
+            methods: {
+                loadSubCategories(category){
+                    console.log("你触发了鼠标移动事件")
+                    axios.get("http://api.gmall.com/index/cates/" + category.id).then(({data}) => {
+                        category.subs = data.data;
+                    })
+                }
+            }
+        })
+    </script>
+</div>
+
+</body>
+</html>
