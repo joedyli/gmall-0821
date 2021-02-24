@@ -24,6 +24,8 @@ public class Cart {
     @TableField("sale_attrs")
     private String saleAttrs; // 销售属性：List<SkuAttrValueEntity>的json格式
     private BigDecimal price; // 加入购物车时的价格
+    @TableField(exist = false)
+    private BigDecimal currentPrice; // 实时价格
     private BigDecimal count;
     private Boolean store = false; // 是否有货
     private String sales; // 营销信息: List<ItemSaleVo>的json格式
