@@ -7,6 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+/**
+ * 强制约定：所有异步方法的第一个参数必须是userId、userKey
+ */
 @Service
 public class CartAsyncService {
 
@@ -19,7 +22,8 @@ public class CartAsyncService {
     }
 
     @Async
-    public void insertCart(Cart cart){
+    public void insertCart(String userId, Cart cart){
+        int i = 1/0;
         this.cartMapper.insert(cart);
     }
 

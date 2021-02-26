@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: order-service
+  cloud:
+    nacos:
+      config:
+        server-addr: localhost:8848

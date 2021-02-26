@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=9; IE=8; IE=7; IE=EDGE">
+    <meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+    <title>订单结算页</title>
+    <link rel="stylesheet" type="text/css" href="http://static.gmall.com/css/all.css"/>
+    <link rel="stylesheet" type="text/css" href="http://static.gmall.com/css/pages-getOrderInfo.css"/>
+    <script type="text/javascript" src="http://static.gmall.com/js/plugins/jquery/jquery.min.js"></script>
+    <script type="text/javascript" src="http://static.gmall.com/js/plugins/jquery.cookie.js"></script>
+    <script src="http://static.gmall.com/js/plugins/vue.js"></script>
+    <script src="http://static.gmall.com/js/plugins/axios.js"></script>
+    <script src="http://static.gmall.com/js/auth.js"></script>
+    <script src="http://static.gmall.com/js/request.js"></script>
+</head>
+
+<body>
+<!--head-->
+<!-- 头部栏位 -->
+<!--页面顶部-->
+<div th:include="/common/header :: header"></div>
+
+<div class="cart py-container" id="app">
+    <!--主内容-->
+    <div class="checkout py-container">
+        <div class="checkout-tit">
+            <h4 class="tit-txt">填写并核对订单信息</h4>
+        </div>
+        <div class="checkout-steps">
+            <!--收件人信息-->
+            <div class="step-tit">
+                <h5>收件人信息<span></span></h5>
+            </div>
+            <div class="step-cont">
+                <div class="addressInfo">
+                    <ul class="addr-detail">
+                        <li class="addr-item">
+                            <div class="choose-address" v-for="address in addresses" :key="address.id">
+                                <div class="con name" :class="address.selected ? 'selected' : ''"><a href="javascript:;" @click="selectAddress(address)"><em>{{address.name}}</em><span
+                                        title="点击取消选择"></span></a></div>
+                                <div class="con address">
+                                    <span class="place">{{address.province}}</span>
+                                    <span class="place">{{address.city}}</span>
+                                    <span class="place">{{address.region}}</span>
+                                    <span class="place">{{address.address}}</span>
+                                    <span class="phone">{{address.phone}}</span>
+                                    <span class="base" v-if="address.defaultStatus == 1">默认地址</span>
+                                </div>
+                                <div class="clearfix"></div>
+                            </div>
+                        </li>
+                    </ul>
+                    <!--确认地址-->
+                </div>
+            </div>
+            <div class="hr"></div>
+            <!--支付和送货清单-->
+            <div class="payshipInfo">
+                <!-- 支付方式 -->
+                <div class="step-tit">
+                    <h5>支付方式</h5>
+                </div>
+                <div class="step-cont">
+                    <ul class="payType">
+                        <li :class="order.payType == 1 ? 'selected' : ''" typeValue="1" @click="order.payType=1">在线支付<span title="点击取消选择"></span></li>
+                        <li :class="order.payType == 2 ? 'selected' : ''" typeValue="0" @click="order.payType=2">货到付款<span title="点击取消选择"></span></li>
+                        <input type="hidden" id="payType" value="1">
+                    </ul>
+                </div>
+                <div class="hr"></div>
+                <!-- 送货清单 -->
+                <div class="step-tit">
+                    <h5>送货清单</h5>
+                </div>
+                <div class="step-cont">
+                    <ul class="send-detail">
+                        <li>
+                            <div class="sendType">
+                                <span>配送方式：</span>
+                                <ul>
+                                    <li>
+                                        <div class="con express">{{order.deliveryCompany}}</div>
+                                        <div class="con delivery">配送时间：预计8月10日（周三）09:00-15:00送达</div>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="sendGoods">
+                                <span>商品清单：</span>
+                                <ul class="yui3-g" v-for="item in order.items" :key="item.skuId">
+                                    <li class="yui3-u-1-6">
+                                        <span><img :src="item.defaultImage" width="150px" height="200px"/></span>
+                                    </li>
+                                    <li class="yui3-u-7-12">
+                                        <div class="desc">
+                                            <span>{{item.title}}</span><br>
+                                            <span v-for="saleAttr in item.saleAttrs">{{saleAttr.attrName}}：{{saleAttr.attrValue}}&emsp;</span>
+                                        </div>
+                                        <div class="seven">7天无理由退货</div>
+                                    </li>
+                                    <li class="yui3-u-1-12">
+                                        <div class="price">￥{{item.price.toFixed(2)}}</div>
+                                    </li>
+                                    <li class="yui3-u-1-12">
+                                        <div class="num">X{{item.count}}</div>
+                                    </li>
+                                    <li class="yui3-u-1-12">
+                                        <div class="exit" v-text="item.store ? '有货' : '无货'">有货</div>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="buyMessage">
+                                <span>买家留言：</span>
+                                <textarea placeholder="建议留言前先与商家沟通确认" class="remarks-cont"></textarea>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="hr"></div>
+            </div>
+
+            <!-- 发票信息 -->
+            <div class="linkInfo">
+                <div class="step-tit">
+                    <h5>发票信息</h5>
+                </div>
+                <div class="step-cont">
+                    <span>普通发票（电子）</span>
+                    <span>个人</span>
+                    <span>明细</span>
+                </div>
+            </div>
+            <!-- 积分优惠 -->
+            <div class="cardInfo">
+                <div class="step-tit">
+                    <h5>使用优惠/抵用</h5>
+                </div>
+                <div class="step-cont">
+                    <span>购买积分：{{order.bounds}}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 汇总信息 -->
+    <div class="order-summary">
+        <div class="static fr">
+            <div class="list">
+                <span><i class="number">{{total}}</i>件商品，总商品金额</span>
+                <em class="allprice">¥{{order.totalPrice.toFixed(2)}}</em>
+            </div>
+            <div class="list">
+                <span>返现：</span>
+                <em class="money">{{returnMoney.toFixed(2)}}</em>
+            </div>
+            <div class="list">
+                <span>运费：</span>
+                <em class="transport">{{postFee.toFixed(2)}}</em>
+            </div>
+        </div>
+    </div>
+    <!-- 送货信息 -->
+    <div class="clearfix trade">
+        <div class="fc-price">应付金额:　<span class="price">¥{{payAmount.toFixed(2)}}</span></div>
+        <div class="fc-receiverInfo">
+            寄送至:
+            <span id="receive-address">{{order.address.city}}{{order.address.region}}{{order.address.address}}</span>
+            收货人：<span id="receive-name">{{order.address.name}}</span>
+            <span id="receive-phone">{{order.address.phone}}</span>
+        </div>
+    </div>
+    <!-- 提交订单 -->
+    <div class="submit">
+        <a class="sui-btn btn-danger btn-xlarge" @click="submitOrder()">提交订单</a>
+    </div>
+</div>
+<!-- 底部栏位 -->
+<!--页面底部-->
+<div th:replace="/common/footer :: footer"></div>
+
+<script th:inline="javascript">
+    let app = new Vue({
+        el: "#app",
+        data: {
+            addresses: [[${confirmVo.addresses}]], // 收获地址列表
+            order: {   // 收集订单提交信息
+                orderToken: [[${confirmVo.orderToken}]],  // 订单编号
+                address: {}, // 用户选中的收货地址
+                payType: 1,
+                deliveryCompany: "顺丰快递",
+                bounds: [[${confirmVo.bounds}]],   // 积分信息
+                items: [[${confirmVo.orderItems}]], // 送货清单
+                totalPrice: 0
+            },
+            returnMoney: 0.00,
+            postFee: 10.00
+        },
+        created(){
+            // 处理默认地址选中状态
+            let addresses = this.addresses
+            addresses.forEach(address => {
+                address.selected = false
+                if (address.defaultStatus) {
+                    address.selected = true
+                    this.order.address = address
+                }
+            })
+            this.addresses = addresses
+
+            // 计算商品详情的总价格
+            this.order.totalPrice = this.order.items.reduce((a, b) => a + b.price * b.count, 0)
+        },
+        computed: {
+            /**
+             * 通过计算属性获取总件数
+             * @returns {*}
+             */
+            total(){
+                return this.order.items.reduce((a, b) => a + b.count, 0)
+            },
+            payAmount(){
+                return this.order.totalPrice + this.postFee - this.returnMoney;
+            }
+        },
+        methods: {
+            selectAddress(address){ // 选择地址方法
+                this.addresses.forEach(address => { // 重置所有地址的选中状态
+                    address.selected = false
+                })
+                address.selected = true
+                this.order.address = address
+            },
+            submitOrder(){
+                axios.post('http://order.gmall.com/submit', this.order).then(({data}) => {
+                    if (data.code === 0) {
+                        window.location = 'http://payment.gmall.com/pay.html?orderToken=' + data.data
+                    } else {
+                        alert(data.data)
+                    }
+                }).catch(({response}) => { // 提交订单失败，弹出错误信息
+                    alert(response.data.message);
+                })
+            }
+        }
+    })
+</script>
+
+<script>
+    $(function () {
+        $(".address").hover(function () {
+            $(this).addClass("address-hover");
+        }, function () {
+            $(this).removeClass("address-hover");
+        });
+
+        $(".choose-address .name").click(function () {
+            $(this).addClass("selected");
+            $(this).parent().siblings().children('.name').removeClass("selected");
+            var place = $(this).siblings('.address').children('.place').text();
+            var phone = $(this).siblings('.address').children('.phone').text();
+            $("#receive-name").text($(this).text());
+            $("#receive-address").text(place);
+            $("#receive-phone").text(phone)
+        });
+        $(".payType li").click(function () {
+            $(this).toggleClass("selected").siblings().removeClass("selected");
+            $("#payType").val($(this).attr('typeValue'));
+            console.log($("#payType").val());
+        });
+    })
+</script>
+
+</body>
+
+</html>
