@@ -263,4 +263,20 @@ public class CartService {
         hashOps.delete(skuId.toString());
         this.asyncService.deleteCartBySkuId(userId, skuId);
     }
+
+    public List<Cart> queryCheckedCarts(Long userId) {
+
+        String key = KEY_PREFIX + userId;
+
+        BoundHashOperations<String, Object, Object> hashOps = this.redisTemplate.boundHashOps(key);
+        List<Object> cartJsons = hashOps.values();
+        if (CollectionUtils.isEmpty(cartJsons)){
+            return null;
+        }
+
+        return cartJsons.stream()
+                .map(cartJson -> JSON.parseObject(cartJson.toString(), Cart.class))
+                .filter(Cart::getCheck)
+                .collect(Collectors.toList());
+    }
 }
