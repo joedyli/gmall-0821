@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=9; IE=8; IE=7; IE=EDGE">
+    <meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+    <title>支付页</title>
+    <link rel="icon" href="http://static.gmall.com/img/favicon.ico">
+    <link rel="stylesheet" type="text/css" href="http://static.gmall.com/css/all.css"/>
+    <link rel="stylesheet" type="text/css" href="http://static.gmall.com/css/pages-pay.css"/>
+    <script type="text/javascript" src="http://static.gmall.com/js/plugins/jquery/jquery.min.js"></script>
+    <script type="text/javascript" src="http://static.gmall.com/js/plugins/jquery.cookie.js"></script>
+    <script src="http://static.gmall.com/js/plugins/vue.js"></script>
+    <script src="http://static.gmall.com/js/plugins/axios.js"></script>
+    <script src="http://static.gmall.com/js/auth.js"></script>
+    <script src="http://static.gmall.com/js/request.js"></script>
+</head>
+
+<body>
+<!--head-->
+<!-- 头部栏位 -->
+<!--页面顶部-->
+<div th:include="/common/header :: header"></div>
+
+<div class="cart py-container">
+
+    <!--主内容-->
+    <div class="checkout py-container  pay">
+        <div class="checkout-tit">
+            <h4 class="tit-txt"><span class="success-icon"></span><span
+                    class="success-info">订单提交成功，请您及时付款，以便尽快为您发货~~</span></h4>
+            <div class="paymark">
+                <span class="fl">请您在提交订单<em class="orange time">4小时</em>之内完成支付，超时订单会自动取消。
+                    订单号：<em th:text="${orderEntity.orderSn}">145687</em></span>
+                <span class="fr"><em class="sui-lead">应付金额：</em>
+                    <em class="orange money" th:text="|￥${#numbers.formatDecimal(orderEntity.payAmount, 1, 2)}|">￥17,654</em></span>
+            </div>
+        </div>
+
+        <div class="check-info">
+            <h4>重要说明：</h4>
+            <ol>
+                <li>尚品汇商城支付平台目前支持<span class="zfb">支付宝</span>支付方式。</li>
+                <li>其它支付渠道正在调试中，敬请期待。</li>
+                <li>为了保证您的购物支付流程顺利完成，请保存以下支付宝信息。</li>
+            </ol>
+            <h4>支付宝账户信息：（很重要，<span class="save">请保存！！！</span>）</h4>
+            <ul>
+                <li>支付帐号：11111111</li>
+                <li>密码：111111</li>
+                <li>支付密码：111111</li>
+            </ul>
+        </div>
+
+
+        <div class="checkout-steps">
+            <!--收件人信息-->
+            <div class="step-tit">
+                <h5>支付平台</h5>
+            </div>
+            <div class="step-cont">
+                <ul class="payType">
+                    <li><img src="http://static.gmall.com/img/_/pay2.jpg"></li>
+                    <li><img src="http://static.gmall.com/img/_/pay3.jpg"></li>
+                </ul>
+            </div>
+            <div class="hr"></div>
+
+            <!--支付和送货-->
+            <div class="payshipInfo">
+                <div class="step-tit">
+                    <h5>支付网银</h5>
+                </div>
+                <div class="step-cont">
+                    <ul class="payType">
+                        <li><img src="http://static.gmall.com/img/_/pay10.jpg"></li>
+                        <li><img src="http://static.gmall.com/img/_/pay11.jpg"></li>
+                        <li><img src="http://static.gmall.com/img/_/pay12.jpg"></li>
+                        <li><img src="http://static.gmall.com/img/_/pay13.jpg"></li>
+                        <li><img src="http://static.gmall.com/img/_/pay14.jpg"></li>
+                        <li><img src="http://static.gmall.com/img/_/pay15.jpg"></li>
+                        <li><img src="http://static.gmall.com/img/_/pay16.jpg"></li>
+                        <li><img src="http://static.gmall.com/img/_/pay17.jpg"></li>
+                        <li><img src="http://static.gmall.com/img/_/pay18.jpg"></li>
+                        <li><img src="http://static.gmall.com/img/_/pay19.jpg"></li>
+                        <li><img src="http://static.gmall.com/img/_/pay20.jpg"></li>
+                        <li><img src="http://static.gmall.com/img/_/pay21.jpg"></li>
+                        <li><img src="http://static.gmall.com/img/_/pay22.jpg"></li>
+
+                    </ul>
+                </div>
+                <div class="hr"></div>
+            </div>
+
+            <div class="submit sui-text-center">
+                <a class="sui-btn btn-danger btn-xlarge" th:href="|http://payment.gmall.com/alipay.html?orderToken=${orderEntity.orderSn}|" target="_self">立即支付</a>
+            </div>
+            <div class="otherpay">
+                <div class="step-tit">
+                    <h5>其他支付方式</h5>
+                </div>
+                <div class="step-cont">
+                    <span><a href="weixinpay.html" target="_blank">微信支付</a></span>
+                    <span>中国银联</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+<!-- 底部栏位 -->
+<!--页面底部-->
+<div th:replace="/common/footer :: footer"></div>
+<!--页面底部END-->
+
+</body>
+</html>

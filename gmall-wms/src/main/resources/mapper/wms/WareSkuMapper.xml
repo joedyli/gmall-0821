@@ -7,8 +7,11 @@
     <update id="unlock">
         UPDATE wms_ware_sku set stock_locked = stock_locked - #{count} where id = #{id}
     </update>
+    <update id="minus">
+        UPDATE wms_ware_sku set stock = stock - #{count}, stock_locked = stock_locked - #{count}, sales = sales + #{count} where id = #{id}
+    </update>
 
     <select id="check" resultType="WareSkuEntity">
-        select * from wms_ware_sku where sku_id = #{skuId} and stock - stock_locked > #{count}
+        select * from wms_ware_sku where sku_id = #{skuId} and stock - stock_locked > #{count} for update
     </select>
 </mapper>
